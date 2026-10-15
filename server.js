@@ -5,10 +5,30 @@ const ADMIN = process.env.ADMIN_PASSWORD || "";
 const FILE = process.env.DATA_FILE || path.join(__dirname, "data.json");
 const PUB = path.join(__dirname, "public");
 
-let db = { codes: { SCREAM: { label: "the Haunted House" } }, scores: {} };
+let db = { codes: { SCREAM: { label: "the Haunted House" } }, events: {}, scores: {}, secret: "" };
 try { db = JSON.parse(fs.readFileSync(FILE, "utf8")); } catch (e) {}
+db.events = db.events || {}; db.scores = db.scores || {}; db.codes = db.codes || {};
+if (!db.secret) db.secret = crypto.randomBytes(24).toString("hex");
 function save() { fs.writeFileSync(FILE + ".tmp", JSON.stringify(db)); fs.renameSync(FILE + ".tmp", FILE); }
+save();
 if (!ADMIN) console.warn("WARNING: ADMIN_PASSWORD not set, so the /admin page is disabled.");
+
+// ---- rotating codes: a new code every `minutes`; the previous one still works for one more period ----
+const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const slotOf = (ev, t) => Math.floor((t || Date.now()) / (ev.minutes * 60000));
+function codeFor(id, slot) {
+  const h = crypto.createHmac("sha256", db.secret).update(id + ":" + slot).digest();
+  let s = ""; for (let i = 0; i < 5; i++) s += ALPHA[h[i] % ALPHA.length]; return s;
+}
+function resolveJoin(c) {
+  if (db.codes[c]) return { board: c, label: db.codes[c].label };
+  for (const id of Object.keys(db.events)) {
+    const ev = db.events[id], sl = slotOf(ev);
+    if (c === codeFor(id, sl) || c === codeFor(id, sl - 1)) return { board: id, label: ev.label };
+  }
+  return null;
+}
+const validBoard = (b) => !!(db.codes[b] || db.events[b]);
 
 const hits = new Map(), adminHits = new Map();
 setInterval(() => { hits.clear(); adminHits.clear(); }, 60000);
@@ -35,8 +55,18 @@ function adminOk(pw) {
   const a = crypto.createHash("sha256").update(pw).digest(), b = crypto.createHash("sha256").update(ADMIN).digest();
   return crypto.timingSafeEqual(a, b);
 }
-const top = (code, n) => (db.scores[code] || []).slice().sort((a, b) => b.score - a.score || a.t - b.t).slice(0, n)
+const top = (board, n) => (db.scores[board] || []).slice().sort((a, b) => b.score - a.score || a.t - b.t).slice(0, n)
   .map((r) => ({ name: r.name, score: r.score, right: r.right }));
+function adminList() {
+  return {
+    ok: true,
+    codes: Object.keys(db.codes).map((k) => ({ code: k, label: db.codes[k].label, plays: (db.scores[k] || []).length, top: top(k, 5) })),
+    events: Object.keys(db.events).map((id) => {
+      const ev = db.events[id];
+      return { id, name: ev.name, label: ev.label, minutes: ev.minutes, code: codeFor(id, slotOf(ev)), plays: (db.scores[id] || []).length, top: top(id, 5) };
+    }),
+  };
+}
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
@@ -45,16 +75,22 @@ http.createServer(async (req, res) => {
   const u = new URL(req.url, "http://x");
   try {
     if (u.pathname === "/api/join" && req.method === "POST") {
-      const c = normCode((await body(req)).code), e = db.codes[c];
-      return e ? send(res, 200, { ok: true, label: e.label }) : send(res, 200, { ok: false });
+      const r = resolveJoin(normCode((await body(req)).code));
+      return r ? send(res, 200, { ok: true, label: r.label, board: r.board }) : send(res, 200, { ok: false });
     }
     if (u.pathname === "/api/board" && req.method === "GET") {
       const c = normCode(u.searchParams.get("code"));
-      return db.codes[c] ? send(res, 200, { rows: top(c, 10) }) : send(res, 404, { rows: [] });
+      return validBoard(c) ? send(res, 200, { rows: top(c, 10) }) : send(res, 404, { rows: [] });
+    }
+    if (u.pathname === "/api/display" && req.method === "GET") {
+      const id = normCode(u.searchParams.get("event")), ev = db.events[id];
+      if (!ev) return send(res, 404, { rows: [] });
+      const sl = slotOf(ev);
+      return send(res, 200, { label: ev.label, code: codeFor(id, sl), nextAt: (sl + 1) * ev.minutes * 60000, rows: top(id, 10) });
     }
     if (u.pathname === "/api/score" && req.method === "POST") {
       const b = await body(req), c = normCode(b.code);
-      if (!db.codes[c]) return send(res, 404, { ok: false });
+      if (!validBoard(c)) return send(res, 404, { ok: false });
       const score = Math.floor(+b.score), right = Math.floor(+b.right), name = clean(b.name, 14), id = clean(b.id, 40);
       if (!name || !id || !(right >= 0 && right <= 10) || !(score >= right * 100 && score <= right * 145)) return send(res, 400, { ok: false });
       const list = db.scores[c] || (db.scores[c] = []);
@@ -69,13 +105,18 @@ http.createServer(async (req, res) => {
       if (limited(req, adminHits, 30)) return send(res, 429, { ok: false });
       const b = await body(req);
       if (!adminOk(b.password)) return send(res, 401, { ok: false });
-      const c = normCode(b.code);
+      const c = normCode(b.code), id = normCode(b.id);
       if (b.action === "add" && c) db.codes[c] = { label: clean(b.label, 40) || "the Haunted House" };
       if (b.action === "remove" && c) { delete db.codes[c]; delete db.scores[c]; }
       if (b.action === "reset" && c) db.scores[c] = [];
+      if (b.action === "addEvent") {
+        const nid = crypto.randomBytes(4).toString("hex").toUpperCase();
+        db.events[nid] = { name: clean(b.name, 30) || "Event", label: clean(b.label, 40) || "the Haunted House", minutes: Math.min(240, Math.max(1, Math.floor(+b.minutes) || 30)) };
+      }
+      if (b.action === "removeEvent" && db.events[id]) { delete db.events[id]; delete db.scores[id]; }
+      if (b.action === "resetEvent" && db.events[id]) db.scores[id] = [];
       if (b.action !== "list") save();
-      const out = Object.keys(db.codes).map((k) => ({ code: k, label: db.codes[k].label, plays: (db.scores[k] || []).length, top: top(k, 5) }));
-      return send(res, 200, { ok: true, codes: out });
+      return send(res, 200, adminList());
     }
     // static files
     let p = u.pathname === "/" ? "/index.html" : u.pathname === "/admin" ? "/admin.html" : u.pathname === "/display" ? "/display.html" : u.pathname;

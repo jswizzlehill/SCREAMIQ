@@ -125,7 +125,7 @@ function enter(){
   .then(function(r){return r.json()}).then(function(j){
     $("go").disabled=false;
     if(!j.ok){$("err").textContent="That code doesn't work. Check the sign in line.";return}
-    S.code=c;
+    S.code=j.board||c;
     $("welcome").textContent="Welcome to "+j.label+". Who dares enter?";
     try{var n=localStorage.getItem("ht_name");if(n)$("nick").value=n}catch(e){}
     show("name");

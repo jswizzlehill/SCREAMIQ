@@ -25,6 +25,7 @@ h1 span{color:#fff}
 #bar i{display:block;height:100%;width:100%;background:#e3182f}
 #join{margin-top:2vh;text-align:center;font-size:clamp(16px,3vh,40px);color:#b08a8f}
 #join b{color:#fff;letter-spacing:.6vh}
+#jc{font-size:1.9em;color:#e3182f!important;text-shadow:0 0 2vh #ff1f3d88}
 #right{display:flex;flex-direction:column}
 #right h2{margin:0 0 1.5vh;text-align:center;font-size:3.6vh;color:#e3182f}
 ol{list-style:none;margin:0;padding:0;flex:1}
@@ -86,12 +87,20 @@ var BANK = [
 ];
 var $=function(i){return document.getElementById(i)};
 var code=(new URLSearchParams(location.search).get("code")||"").trim().toUpperCase();
-if(!code){$("setup").style.display="flex";
+var ev=(new URLSearchParams(location.search).get("event")||"").trim().toUpperCase();
+if(!code&&!ev){$("setup").style.display="flex";
   $("sb").onclick=function(){var c=$("sc").value.trim();if(c)location.search="?code="+encodeURIComponent(c)};
   $("sc").onkeydown=function(e){if(e.key==="Enter")$("sb").click()};
 }else{
-  $("join").innerHTML="Play on your phone: <b>"+location.host+"</b> &nbsp; Code: <b></b>";
-  $("join").querySelectorAll("b")[1].textContent=code;
+  $("join").innerHTML='Play on your phone: <b></b> &nbsp; Code: <b id="jc"></b><div id="jn" style="font-size:.7em;margin-top:.6vh"></div>';
+  $("join").querySelectorAll("b")[0].textContent=location.host;
+  $("jc").textContent=code;
+  var nextAt=0;
+  setInterval(function(){
+    if(!nextAt){return}
+    var m=Math.max(0,Math.floor((nextAt-Date.now())/1000)),mm=Math.floor(m/60),ss=("0"+(m%60)).slice(-2);
+    $("jn").textContent="New code in "+mm+":"+ss;
+  },1000);
   var order=[],pos=0;
   function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
   function nextQ(){
@@ -115,7 +124,8 @@ if(!code){$("setup").style.display="flex";
   }
   nextQ();
   function board(){
-    fetch("/api/board?code="+encodeURIComponent(code)).then(function(r){return r.json()}).then(function(j){
+    fetch(ev?"/api/display?event="+encodeURIComponent(ev):"/api/board?code="+encodeURIComponent(code)).then(function(r){return r.json()}).then(function(j){
+      if(j.code){$("jc").textContent=j.code;nextAt=j.nextAt}
       var l=$("list");l.innerHTML="";
       (j.rows||[]).forEach(function(r,i){
         var li=document.createElement("li");

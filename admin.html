@@ -6,12 +6,14 @@
 body{margin:0;background:#060203;color:#f3dede;font-family:Georgia,serif;padding:16px}
 main{max-width:560px;margin:0 auto}
 h1{color:#e3182f;margin:8px 0 16px}
+h2{color:#e3182f;font-size:1.1rem;margin:18px 0 8px}
 .card{background:#140609;border:1px solid #5a141c;border-radius:12px;padding:14px;margin-bottom:12px}
-input{font:inherit;padding:10px;border-radius:8px;border:2px solid #6e1a24;background:#0a0305;color:#f3dede;width:100%;margin-bottom:8px;box-sizing:border-box}
+input,select{font:inherit;padding:10px;border-radius:8px;border:2px solid #6e1a24;background:#0a0305;color:#f3dede;width:100%;margin-bottom:8px;box-sizing:border-box}
 button{font:inherit;padding:10px 14px;border:0;border-radius:8px;background:#e3182f;color:#fff;font-weight:bold;cursor:pointer;margin-right:6px}
 button.alt{background:#3a1218}
 .code{font-size:1.4rem;letter-spacing:3px;color:#e3182f}
 small{color:#b08a8f}
+a{color:#e3182f}
 </style></head><body><main>
 <h1>ScreamIQ Admin</h1>
 <div class="card" id="login">
@@ -19,8 +21,24 @@ small{color:#b08a8f}
   <button onclick="load()">Log in</button> <small id="msg"></small>
 </div>
 <div id="panel" style="display:none">
+  <h2>Automatic codes (recommended)</h2>
   <div class="card">
-    <b>Add a code</b><br><br>
+    <small>Set this up once. The code changes by itself and shows on the big screen. Nobody has to type new codes.</small><br><br>
+    <input id="en" maxlength="30" placeholder="Name for you, e.g. Friday night">
+    <input id="el" maxlength="40" placeholder="Name players see, e.g. the Asylum">
+    <select id="em">
+      <option value="10">New code every 10 minutes</option>
+      <option value="15">New code every 15 minutes</option>
+      <option value="30" selected>New code every 30 minutes</option>
+      <option value="60">New code every hour</option>
+    </select>
+    <button onclick="addEvent()">Create</button>
+  </div>
+  <div id="events"></div>
+
+  <h2>Fixed codes</h2>
+  <div class="card">
+    <small>A code that stays the same until you delete it.</small><br><br>
     <input id="nc" maxlength="12" placeholder="CODE (letters/numbers)">
     <input id="nl" maxlength="40" placeholder="Name shown to players, e.g. the Asylum">
     <button onclick="act('add')">Add code</button>
@@ -29,35 +47,59 @@ small{color:#b08a8f}
 </div>
 <script>
 var pw="";
-function api(a,code){
-  return fetch("/api/admin",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({password:pw,action:a,code:code,label:document.getElementById("nl").value})}).then(function(r){return r.json()});
+function post(o){
+  o.password=pw;
+  return fetch("/api/admin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(o)}).then(function(r){return r.json()});
 }
 function load(){
   pw=document.getElementById("pw").value;
-  api("list","").then(show).catch(function(){document.getElementById("msg").textContent="Could not connect"});
+  post({action:"list"}).then(show).catch(function(){document.getElementById("msg").textContent="Could not connect"});
 }
 function act(a,code){
   if(a==="remove"&&!confirm("Delete "+code+" and all its scores?"))return;
   if(a==="reset"&&!confirm("Clear all scores for "+code+"?"))return;
-  api(a,code||document.getElementById("nc").value).then(show);
+  post({action:a,code:code||document.getElementById("nc").value,label:document.getElementById("nl").value}).then(show);
   if(a==="add"){document.getElementById("nc").value="";document.getElementById("nl").value=""}
 }
+function addEvent(){
+  post({action:"addEvent",name:document.getElementById("en").value,label:document.getElementById("el").value,minutes:document.getElementById("em").value}).then(show);
+  document.getElementById("en").value="";document.getElementById("el").value="";
+}
+function evAct(a,id,name){
+  if(a==="removeEvent"&&!confirm("Delete "+name+" and all its scores?"))return;
+  if(a==="resetEvent"&&!confirm("Clear all scores for "+name+"?"))return;
+  post({action:a,id:id}).then(show);
+}
+function btn(t,f){var b=document.createElement("button");b.className="alt";b.textContent=t;b.onclick=f;return b}
+function topRows(d,rows){rows.forEach(function(r,i){var p=document.createElement("div");p.textContent=(i+1)+". "+r.name+" - "+r.score;d.appendChild(p)})}
 function show(j){
   if(!j.ok){document.getElementById("msg").textContent="Wrong password";return}
   document.getElementById("login").style.display="none";
   document.getElementById("panel").style.display="block";
+  var ev=document.getElementById("events");ev.innerHTML="";
+  (j.events||[]).forEach(function(e){
+    var d=document.createElement("div");d.className="card";
+    var t=document.createElement("div");t.textContent=e.name;t.style.fontWeight="bold";d.appendChild(t);
+    var s=document.createElement("small");s.textContent=e.label+" | new code every "+e.minutes+" min | "+e.plays+" plays";d.appendChild(s);
+    var c=document.createElement("div");c.className="code";c.textContent="Now: "+e.code;d.appendChild(c);
+    var lk=document.createElement("a");lk.href="/display?event="+encodeURIComponent(e.id);lk.target="_blank";lk.textContent="Open big screen (shows the live code)";lk.style.cssText="display:block;margin:8px 0";d.appendChild(lk);
+    topRows(d,e.top);
+    var w=document.createElement("div");w.style.marginTop="8px";
+    w.appendChild(btn("Clear scores",function(){evAct("resetEvent",e.id,e.name)}));
+    w.appendChild(btn("Delete",function(){evAct("removeEvent",e.id,e.name)}));
+    d.appendChild(w);ev.appendChild(d);
+  });
   var l=document.getElementById("list");l.innerHTML="";
-  j.codes.forEach(function(c){
+  (j.codes||[]).forEach(function(c){
     var d=document.createElement("div");d.className="card";
     var t=document.createElement("div");t.className="code";t.textContent=c.code;d.appendChild(t);
     var s=document.createElement("small");s.textContent=c.label+" | "+c.plays+" plays";d.appendChild(s);
-    c.top.forEach(function(r,i){var p=document.createElement("div");p.textContent=(i+1)+". "+r.name+" - "+r.score;d.appendChild(p)});
     var lk=document.createElement("a");lk.href="/display?code="+encodeURIComponent(c.code);lk.target="_blank";lk.textContent="Open big screen";lk.style.cssText="display:block;margin-top:8px;color:#e3182f";d.appendChild(lk);
-    var b1=document.createElement("button");b1.className="alt";b1.textContent="Clear scores";b1.onclick=function(){act("reset",c.code)};
-    var b2=document.createElement("button");b2.className="alt";b2.textContent="Delete code";b2.onclick=function(){act("remove",c.code)};
-    var w=document.createElement("div");w.style.marginTop="8px";w.appendChild(b1);w.appendChild(b2);d.appendChild(w);
-    l.appendChild(d);
+    topRows(d,c.top);
+    var w=document.createElement("div");w.style.marginTop="8px";
+    w.appendChild(btn("Clear scores",function(){act("reset",c.code)}));
+    w.appendChild(btn("Delete code",function(){act("remove",c.code)}));
+    d.appendChild(w);l.appendChild(d);
   });
 }
 </script></main></body></html>
