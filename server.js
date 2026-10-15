@@ -10,11 +10,12 @@ try { db = JSON.parse(fs.readFileSync(FILE, "utf8")); } catch (e) {}
 function save() { fs.writeFileSync(FILE + ".tmp", JSON.stringify(db)); fs.renameSync(FILE + ".tmp", FILE); }
 if (!ADMIN) console.warn("WARNING: ADMIN_PASSWORD not set, so the /admin page is disabled.");
 
-const hits = new Map();
-setInterval(() => hits.clear(), 60000);
-function limited(req) {
-  const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
-  const n = (hits.get(ip) || 0) + 1; hits.set(ip, n); return n > 240;
+const hits = new Map(), adminHits = new Map();
+setInterval(() => { hits.clear(); adminHits.clear(); }, 60000);
+function ipOf(req) { return (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim(); }
+// Venue Wi-Fi puts many phones behind one address, so the general limit is high.
+function limited(req, map, max) {
+  const ip = ipOf(req), n = (map.get(ip) || 0) + 1; map.set(ip, n); return n > max;
 }
 function send(res, code, obj) {
   res.writeHead(code, { "Content-Type": "application/json", "Cache-Control": "no-store" });
@@ -40,7 +41,7 @@ const top = (code, n) => (db.scores[code] || []).slice().sort((a, b) => b.score 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
 http.createServer(async (req, res) => {
-  if (limited(req)) return send(res, 429, { ok: false });
+  if (limited(req, hits, 20000)) return send(res, 429, { ok: false });
   const u = new URL(req.url, "http://x");
   try {
     if (u.pathname === "/api/join" && req.method === "POST") {
@@ -65,6 +66,7 @@ http.createServer(async (req, res) => {
       return send(res, 200, { ok: true });
     }
     if (u.pathname === "/api/admin" && req.method === "POST") {
+      if (limited(req, adminHits, 30)) return send(res, 429, { ok: false });
       const b = await body(req);
       if (!adminOk(b.password)) return send(res, 401, { ok: false });
       const c = normCode(b.code);
