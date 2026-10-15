@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ScreamIQ</title>
+<style>
+:root{color-scheme:dark;--bg:#060203;--card:#140609;--ink:#f3dede;--mut:#b08a8f;--acc:#e3182f;--good:#3ddc84;--bad:#ff4d5e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at top,#3a0508 0,var(--bg) 60%) fixed;color:var(--ink);font-family:Georgia,"Times New Roman",serif;min-height:100vh}
+main{max-width:480px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:2rem;text-align:center;margin:12px 0 4px;color:var(--acc);letter-spacing:1px;text-shadow:0 0 18px #ff1f3d66}
+p.sub{text-align:center;color:var(--mut);margin:0 0 22px}
+.card{background:var(--card);border:1px solid #5a141c;border-radius:16px;padding:18px;margin-bottom:14px}
+input{width:100%;font:inherit;font-size:1.3rem;text-align:center;padding:14px;border-radius:12px;border:2px solid #6e1a24;background:#0a0305;color:var(--ink);text-transform:none}
+input#code{text-transform:uppercase;letter-spacing:4px}
+button{font:inherit;font-size:1.1rem;width:100%;padding:14px;margin-top:12px;border:0;border-radius:12px;background:var(--acc);color:#fff;font-weight:bold;cursor:pointer}
+button.alt{background:transparent;border:2px solid #6e1a24;color:var(--ink)}
+.err{color:var(--bad);text-align:center;min-height:1.3em;margin-top:8px}
+.hide{display:none}
+.top{display:flex;justify-content:space-between;color:var(--mut);margin-bottom:8px}
+.bar{height:8px;background:#2a0a0e;border-radius:6px;overflow:hidden;margin-bottom:16px}
+.bar i{display:block;height:100%;width:100%;background:var(--acc);transition:width .1s linear}
+.q{font-size:1.25rem;line-height:1.4;margin:0 0 14px}
+.opt{background:#1f0a0d;color:var(--ink);border:2px solid #5a141c;font-weight:normal;text-align:left;margin-top:10px}
+.opt.good{background:#12381f;border-color:var(--good)}
+.opt.bad{background:#4a0c14;border-color:var(--bad)}
+.big{font-size:3.2rem;text-align:center;color:var(--acc);margin:4px 0}
+ol{list-style:none;margin:0;padding:0}
+li{display:flex;gap:10px;padding:9px 6px;border-bottom:1px solid #3a1218}
+li:last-child{border:0}
+li .n{width:26px;color:var(--mut)}li .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}li .sc{color:var(--acc);font-weight:bold}
+li.me{background:#ff1f3d22;border-radius:8px}
+.note{font-size:.8rem;color:var(--mut);text-align:center;margin-top:8px}
+h1{font-size:2.6rem;font-weight:900;letter-spacing:3px;text-shadow:0 2px 0 #5a0009,0 0 22px #ff1f3d88}
+h1 span{color:#fff;text-shadow:0 0 14px #ff1f3d}
+main{position:relative;padding-top:56px}
+.drip{position:fixed;top:0;left:0;right:0;height:60px;pointer-events:none;z-index:2;background:radial-gradient(ellipse 7px 26px at 22px 0,#a00016 72%,transparent 74%) 0 0/70px 60px repeat-x,radial-gradient(ellipse 5px 14px at 51px 0,#7a0010 72%,transparent 74%) 0 0/70px 60px repeat-x,linear-gradient(#8a0010,#8a0010) 0 0/100% 9px no-repeat;filter:drop-shadow(0 3px 6px #000)}
+.card{box-shadow:inset 0 0 30px #00000088,0 0 16px #5a000a55}
+input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 12px #ff1f3d77}
+button{box-shadow:0 3px 0 #6b0412}
+</style>
+</head>
+<body>
+<div class="drip"></div>
+<main>
+<h1>SCREAM<span>IQ</span></h1>
+<p class="sub">How much do you know about fear?</p>
+
+<section id="home" class="card">
+  <p style="margin-top:0;text-align:center">Enter the code posted in line</p>
+  <input id="code" maxlength="12" autocomplete="off" autocapitalize="characters" placeholder="CODE">
+  <div class="err" id="err"></div>
+  <button id="go">Enter if you dare</button>
+</section>
+
+<section id="name" class="card hide">
+  <p id="welcome" style="margin-top:0;text-align:center"></p>
+  <input id="nick" maxlength="14" autocomplete="off" placeholder="Your name">
+  <button id="start">Start round (10 questions)</button>
+  <button class="alt" id="lb1">View leaderboard</button>
+  <div id="board0"></div>
+</section>
+
+<section id="quiz" class="hide">
+  <div class="top"><span id="qn"></span><span id="pts"></span></div>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="card"><p class="q" id="qt"></p><div id="opts"></div></div>
+</section>
+
+<section id="done" class="card hide">
+  <p style="margin:0;text-align:center;color:var(--mut)">Round complete</p>
+  <div class="big" id="final"></div>
+  <p id="summary" style="text-align:center;margin-top:0"></p>
+  <div id="board1"></div>
+  <button id="again">Play another round</button>
+</section>
+</main>
+
+<script>
+var BANK = [
+["Which creature is said to be killed by a wooden stake through the heart?",["Vampire","Zombie","Mummy","Ghoul"]],
+["Halloween traces back to which ancient Celtic festival?",["Samhain","Beltane","Yule","Lughnasadh"]],
+["Jack-o'-lanterns were first carved from which vegetable in Ireland?",["Turnips","Pumpkins","Potatoes","Cabbages"]],
+["In which year did the Salem witch trials take place?",["1692","1492","1776","1812"]],
+["What is the fear of spiders called?",["Arachnophobia","Claustrophobia","Acrophobia","Ophidiophobia"]],
+["Who wrote the novel Frankenstein?",["Mary Shelley","Bram Stoker","Edgar Allan Poe","Stephen King"]],
+["Which creature transforms under a full moon?",["Werewolf","Banshee","Gargoyle","Wraith"]],
+["Who wrote the 1897 novel Dracula?",["Bram Stoker","Mary Shelley","H.P. Lovecraft","Anne Rice"]],
+["In Irish folklore, a banshee's wail warns of what?",["A death","A storm","Buried treasure","A wedding"]],
+["Who directed the 1960 thriller Psycho?",["Alfred Hitchcock","Steven Spielberg","John Carpenter","Wes Craven"]],
+["What is the fear of clowns called?",["Coulrophobia","Xenophobia","Hemophobia","Pyrophobia"]],
+["Which Edgar Allan Poe poem features a tapping at the chamber door?",["The Raven","Annabel Lee","The Bells","Lenore"]],
+["Which animal is classically a witch's companion?",["Black cat","Owl","Toad","Raven"]],
+["Dracula's Transylvania is a region of which country?",["Romania","Hungary","Bulgaria","Poland"]],
+["Ancient Egyptians wrapped mummies in strips of what?",["Linen","Silk","Wool","Leather"]],
+["Fear of the number 13 is called what?",["Triskaidekaphobia","Numerophobia","Hexaphobia","Tetraphobia"]],
+["Day of the Dead (Dia de los Muertos) is most famously celebrated in which country?",["Mexico","Spain","Brazil","Peru"]],
+["In folklore, what can't a vampire cast?",["A reflection","A shadow","A spell","A glance"]],
+["What is a gathering of witches traditionally called?",["Coven","Pack","Flock","Brood"]],
+["The legendary Loch Ness Monster is said to live in which country?",["Scotland","Ireland","Norway","Wales"]],
+["What kind of vessel is the legendary Flying Dutchman?",["Ghost ship","Pirate fort","Slave ship","Navy cruiser"]],
+["Which fruit is traditionally used for Halloween bobbing?",["Apples","Pears","Oranges","Grapes"]],
+["Michael Myers stalks his victims in which horror franchise?",["Halloween","Scream","Friday the 13th","Saw"]],
+["Who wrote The Legend of Sleepy Hollow?",["Washington Irving","Nathaniel Hawthorne","Herman Melville","Mark Twain"]],
+["Bats find their way in the dark using what?",["Echolocation","Infrared vision","Smell","Magnetism"]],
+["What is the fear of darkness called?",["Nyctophobia","Photophobia","Thanatophobia","Agoraphobia"]],
+["Which director made the 1968 zombie classic Night of the Living Dead?",["George A. Romero","Tobe Hooper","Sam Raimi","Dario Argento"]],
+["Which creature has a head of snakes and turns people to stone?",["Medusa","Siren","Harpy","Sphinx"]],
+["What do you call a ghost that moves objects and makes noise?",["Poltergeist","Specter","Phantom","Revenant"]],
+["Which bird is a classic symbol of death and omens, as in Poe's poem?",["Raven","Dove","Robin","Swan"]]
+];
+
+var $ = function(id){return document.getElementById(id)};
+var S = {code:"",name:"",qs:[],i:0,score:0,right:0,t:0,iv:null,lock:false,poll:null};
+function show(id){["home","name","quiz","done"].forEach(function(s){$(s).classList.toggle("hide",s!==id)})}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+
+
+function enter(){
+  var c=$("code").value.trim().toUpperCase();
+  if(!c)return;
+  $("go").disabled=true;$("err").textContent="";
+  fetch("/api/join",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:c})})
+  .then(function(r){return r.json()}).then(function(j){
+    $("go").disabled=false;
+    if(!j.ok){$("err").textContent="That code doesn't work. Check the sign in line.";return}
+    S.code=c;
+    $("welcome").textContent="Welcome to "+j.label+". Who dares enter?";
+    try{var n=localStorage.getItem("ht_name");if(n)$("nick").value=n}catch(e){}
+    show("name");
+  }).catch(function(){$("go").disabled=false;$("err").textContent="No signal. Try again in a moment."});
+}
+$("go").onclick=enter;
+$("code").onkeydown=function(e){if(e.key==="Enter")enter()};
+
+function startRound(){
+  var n=$("nick").value.trim();
+  if(!n){$("nick").focus();return}
+  S.name=n;try{localStorage.setItem("ht_name",n)}catch(e){}
+  S.qs=shuffle(BANK).slice(0,10);S.i=0;S.score=0;S.right=0;
+  show("quiz");ask();
+}
+$("start").onclick=startRound;
+$("again").onclick=function(){show("name");board("board0")};
+$("lb1").onclick=function(){board("board0")};
+
+function ask(){
+  var q=S.qs[S.i];S.lock=false;
+  $("qn").textContent="Question "+(S.i+1)+" of 10";$("pts").textContent=S.score+" pts";
+  $("qt").textContent=q[0];
+  var o=$("opts");o.innerHTML="";
+  shuffle(q[1].map(function(t,k){return{t:t,ok:k===0}})).forEach(function(x){
+    var b=document.createElement("button");b.className="opt";b.textContent=x.t;
+    b.onclick=function(){pick(b,x.ok)};b.dataset.ok=x.ok?"1":"";o.appendChild(b);
+  });
+  S.t=15;tick();clearInterval(S.iv);
+  S.iv=setInterval(function(){S.t-=0.1;tick();if(S.t<=0){clearInterval(S.iv);pick(null,false)}},100);
+}
+function tick(){$("bar").style.width=Math.max(0,S.t/15*100)+"%"}
+function pick(btn,ok){
+  if(S.lock)return;S.lock=true;clearInterval(S.iv);
+  if(ok){S.right++;S.score+=100+Math.round(S.t*3)}
+  Array.prototype.forEach.call($("opts").children,function(b){
+    if(b.dataset.ok)b.classList.add("good");else if(b===btn)b.classList.add("bad");
+  });
+  $("pts").textContent=S.score+" pts";
+  setTimeout(function(){S.i++;if(S.i<10)ask();else finish()},1100);
+}
+
+function finish(){
+  show("done");
+  $("final").textContent=S.score;
+  $("summary").textContent=S.right+" of 10 correct, "+S.name;
+  saveScore();board("board1");
+}
+
+
+// Scores wait in a queue on the phone and upload whenever signal allows (fixed ids prevent duplicates)
+var PKEY="ht_pending",flushing=false;
+function pend(){try{return JSON.parse(localStorage.getItem(PKEY)||"[]")}catch(e){return[]}}
+function setPend(a){try{localStorage.setItem(PKEY,JSON.stringify(a))}catch(e){}}
+function flush(){
+  if(flushing)return;var q=pend();if(!q.length)return;flushing=true;var e=q[0];
+  fetch("/api/score",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)}).then(function(r){
+    if(r.ok||r.status===400||r.status===404){setPend(pend().filter(function(x){return x.id!==e.id}));flushing=false;flush()}
+    else flushing=false;
+  }).catch(function(){flushing=false});
+}
+window.addEventListener("online",flush);
+document.addEventListener("visibilitychange",function(){if(!document.hidden)flush()});
+setInterval(flush,15000);
+
+function localKey(){return "ht_board_"+S.code}
+function localGet(){try{return JSON.parse(localStorage.getItem(localKey())||"[]")}catch(e){return[]}}
+function saveScore(){
+  var e={name:S.name,score:S.score,right:S.right,t:Date.now()};
+  var l=localGet();l.push(e);l.sort(function(a,b){return b.score-a.score});
+  try{localStorage.setItem(localKey(),JSON.stringify(l.slice(0,20)))}catch(x){}
+  var q=pend();q.push({id:e.t+"-"+Math.random().toString(36).slice(2,8),code:S.code,name:e.name,score:e.score,right:e.right,t:e.t});setPend(q);
+  flush();
+}
+
+function render(el,rows,label){
+  var h=document.createElement("div");h.className="card";h.style.marginTop="14px";
+  var t=document.createElement("div");t.style.cssText="text-align:center;font-weight:bold;margin-bottom:6px";
+  t.textContent="Top 10 Leaderboard";h.appendChild(t);
+  var ol=document.createElement("ol");
+  if(!rows.length){var p=document.createElement("div");p.className="note";p.textContent="No scores yet. Be the first!";h.appendChild(p)}
+  rows.slice(0,10).forEach(function(r,k){
+    var li=document.createElement("li");if(r.name===S.name&&r.score===S.score)li.className="me";
+    var a=document.createElement("span");a.className="n";a.textContent=(k+1)+".";
+    var b=document.createElement("span");b.className="nm";b.textContent=r.name;
+    var c=document.createElement("span");c.className="sc";c.textContent=r.score;
+    li.appendChild(a);li.appendChild(b);li.appendChild(c);ol.appendChild(li);
+  });
+  h.appendChild(ol);
+  var n=document.createElement("div");n.className="note";n.textContent=label;h.appendChild(n);
+  el.innerHTML="";el.appendChild(h);
+}
+function board(id){
+  var el=$(id);if(S.poll)clearInterval(S.poll);
+  render(el,localGet(),"Scores on this phone");
+  function load(){
+    fetch("/api/board?code="+encodeURIComponent(S.code)).then(function(r){return r.json()}).then(function(j){
+      render(el,j.rows,"Live scores from everyone in line");
+    }).catch(function(){});
+  }
+  load();setTimeout(load,2500);S.poll=setInterval(load,8000);
+}
+</script>
+</body>
+</html>
