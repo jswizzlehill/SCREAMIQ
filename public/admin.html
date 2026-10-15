@@ -53,6 +53,7 @@ function show(j){
     var t=document.createElement("div");t.className="code";t.textContent=c.code;d.appendChild(t);
     var s=document.createElement("small");s.textContent=c.label+" | "+c.plays+" plays";d.appendChild(s);
     c.top.forEach(function(r,i){var p=document.createElement("div");p.textContent=(i+1)+". "+r.name+" - "+r.score;d.appendChild(p)});
+    var lk=document.createElement("a");lk.href="/display?code="+encodeURIComponent(c.code);lk.target="_blank";lk.textContent="Open big screen";lk.style.cssText="display:block;margin-top:8px;color:#e3182f";d.appendChild(lk);
     var b1=document.createElement("button");b1.className="alt";b1.textContent="Clear scores";b1.onclick=function(){act("reset",c.code)};
     var b2=document.createElement("button");b2.className="alt";b2.textContent="Delete code";b2.onclick=function(){act("remove",c.code)};
     var w=document.createElement("div");w.style.marginTop="8px";w.appendChild(b1);w.appendChild(b2);d.appendChild(w);

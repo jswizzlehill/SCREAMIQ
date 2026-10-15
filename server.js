@@ -76,7 +76,7 @@ http.createServer(async (req, res) => {
       return send(res, 200, { ok: true, codes: out });
     }
     // static files
-    let p = u.pathname === "/" ? "/index.html" : u.pathname === "/admin" ? "/admin.html" : u.pathname;
+    let p = u.pathname === "/" ? "/index.html" : u.pathname === "/admin" ? "/admin.html" : u.pathname === "/display" ? "/display.html" : u.pathname;
     const f = path.normalize(path.join(PUB, p));
     if (!f.startsWith(PUB + path.sep) || !fs.existsSync(f) || !fs.statSync(f).isFile()) { res.writeHead(404); return res.end("Not found"); }
     res.writeHead(200, { "Content-Type": TYPES[path.extname(f)] || "application/octet-stream" });
