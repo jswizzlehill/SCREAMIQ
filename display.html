@@ -52,39 +52,12 @@ li:first-child .nm{color:#fff;font-weight:bold}
   </div>
   <div class="card" id="right"><h2>TOP 10</h2><ol id="list"></ol><div id="empty"></div></div>
 </div>
+<script src="/questions.js"></script>
 <script>
-var BANK = [
-["Which creature is said to be killed by a wooden stake through the heart?",["Vampire","Zombie","Mummy","Ghoul"]],
-["Halloween traces back to which ancient Celtic festival?",["Samhain","Beltane","Yule","Lughnasadh"]],
-["Jack-o'-lanterns were first carved from which vegetable in Ireland?",["Turnips","Pumpkins","Potatoes","Cabbages"]],
-["In which year did the Salem witch trials take place?",["1692","1492","1776","1812"]],
-["What is the fear of spiders called?",["Arachnophobia","Claustrophobia","Acrophobia","Ophidiophobia"]],
-["Who wrote the novel Frankenstein?",["Mary Shelley","Bram Stoker","Edgar Allan Poe","Stephen King"]],
-["Which creature transforms under a full moon?",["Werewolf","Banshee","Gargoyle","Wraith"]],
-["Who wrote the 1897 novel Dracula?",["Bram Stoker","Mary Shelley","H.P. Lovecraft","Anne Rice"]],
-["In Irish folklore, a banshee's wail warns of what?",["A death","A storm","Buried treasure","A wedding"]],
-["Who directed the 1960 thriller Psycho?",["Alfred Hitchcock","Steven Spielberg","John Carpenter","Wes Craven"]],
-["What is the fear of clowns called?",["Coulrophobia","Xenophobia","Hemophobia","Pyrophobia"]],
-["Which Edgar Allan Poe poem features a tapping at the chamber door?",["The Raven","Annabel Lee","The Bells","Lenore"]],
-["Which animal is classically a witch's companion?",["Black cat","Owl","Toad","Raven"]],
-["Dracula's Transylvania is a region of which country?",["Romania","Hungary","Bulgaria","Poland"]],
-["Ancient Egyptians wrapped mummies in strips of what?",["Linen","Silk","Wool","Leather"]],
-["Fear of the number 13 is called what?",["Triskaidekaphobia","Numerophobia","Hexaphobia","Tetraphobia"]],
-["Day of the Dead (Dia de los Muertos) is most famously celebrated in which country?",["Mexico","Spain","Brazil","Peru"]],
-["In folklore, what can't a vampire cast?",["A reflection","A shadow","A spell","A glance"]],
-["What is a gathering of witches traditionally called?",["Coven","Pack","Flock","Brood"]],
-["The legendary Loch Ness Monster is said to live in which country?",["Scotland","Ireland","Norway","Wales"]],
-["What kind of vessel is the legendary Flying Dutchman?",["Ghost ship","Pirate fort","Slave ship","Navy cruiser"]],
-["Which fruit is traditionally used for Halloween bobbing?",["Apples","Pears","Oranges","Grapes"]],
-["Michael Myers stalks his victims in which horror franchise?",["Halloween","Scream","Friday the 13th","Saw"]],
-["Who wrote The Legend of Sleepy Hollow?",["Washington Irving","Nathaniel Hawthorne","Herman Melville","Mark Twain"]],
-["Bats find their way in the dark using what?",["Echolocation","Infrared vision","Smell","Magnetism"]],
-["What is the fear of darkness called?",["Nyctophobia","Photophobia","Thanatophobia","Agoraphobia"]],
-["Which director made the 1968 zombie classic Night of the Living Dead?",["George A. Romero","Tobe Hooper","Sam Raimi","Dario Argento"]],
-["Which creature has a head of snakes and turns people to stone?",["Medusa","Siren","Harpy","Sphinx"]],
-["What do you call a ghost that moves objects and makes noise?",["Poltergeist","Specter","Phantom","Revenant"]],
-["Which bird is a classic symbol of death and omens, as in Poe's poem?",["Raven","Dove","Robin","Swan"]]
-];
+var LOBBY=180000,QMS=10000,REV=5000,NQ=10,RES=20000,CYCLE=LOBBY+NQ*(QMS+REV)+RES;
+function rng(s){return function(){s|=0;s=s+0x6D2B79F5|0;var t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function sshuf(a,seed){a=a.slice();var r=rng(seed);for(var i=a.length-1;i>0;i--){var j=Math.floor(r()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+function qFor(r,i){var q=BANK[sshuf(BANK.map(function(_,k){return k}),r*7919+13)[i]];return{q:q[0],opts:sshuf(q[1].map(function(t,k){return{t:t,ok:k===0}}),r*104729+i*31+7)}}
 var $=function(i){return document.getElementById(i)};
 var code=(new URLSearchParams(location.search).get("code")||"").trim().toUpperCase();
 var ev=(new URLSearchParams(location.search).get("event")||"").trim().toUpperCase();
@@ -122,10 +95,41 @@ if(!code&&!ev){$("setup").style.display="flex";
     Array.prototype.forEach.call($("opts").children,function(d){d.classList.add(d.dataset.ok?"good":"dim")});
     setTimeout(nextQ,5000);
   }
-  nextQ();
+  if(!ev)nextQ();else startLive();
+
+var sync={off:0,epoch:0,ready:false,results:false},cur=-1,curR=-1;
+function heading(h){$("right").querySelector("h2").textContent=h;sync.results=(h==="ROUND RESULTS")}
+function startLive(){
+  setInterval(function(){
+    if(!sync.ready)return;
+    if(!sync.epoch){var iq=$("q");iq.textContent="Get ready! The game starts soon. Enter the code on your phone.";$("opts").innerHTML="";$("cd").textContent="";$("fill").style.width="0%";cur=-1;heading("TONIGHT'S TOP 10");return}
+    var now=Date.now()+sync.off-sync.epoch,r=Math.floor(now/CYCLE),t=now-r*CYCLE,qa=LOBBY+NQ*(QMS+REV);
+    var q=$("q"),o=$("opts"),cd=$("cd"),f=$("fill");f.style.transition="none";
+    if(t<LOBBY){
+      cur=-1;q.textContent="Enter the code on your phone. The game starts when the countdown ends!";o.innerHTML="";
+      var ls=Math.ceil((LOBBY-t)/1000);cd.textContent=Math.floor(ls/60)+":"+("0"+(ls%60)).slice(-2);cd.className="";f.style.width=((LOBBY-t)/LOBBY*100)+"%";heading("TONIGHT'S TOP 10");
+    }else if(t<qa){
+      var qi=Math.floor((t-LOBBY)/(QMS+REV)),w=(t-LOBBY)-qi*(QMS+REV);
+      if(cur!==qi||curR!==r){
+        cur=qi;curR=r;var d=qFor(r,qi);q.textContent=(qi+1)+"/10   "+d.q;o.innerHTML="";
+        d.opts.forEach(function(x,k){var e=document.createElement("div");e.className="o";e.dataset.ok=x.ok?"1":"";
+          var b=document.createElement("b");b.textContent="ABCD"[k];var s=document.createElement("span");s.textContent=x.t;
+          e.appendChild(b);e.appendChild(s);o.appendChild(e)});
+      }
+      if(w<QMS){cd.textContent=Math.ceil((QMS-w)/1000);cd.className=(QMS-w)<=3000?"low":"";f.style.width=((QMS-w)/QMS*100)+"%"}
+      else{cd.textContent="ANSWER";cd.className="";f.style.width="0%";
+        Array.prototype.forEach.call(o.children,function(e){e.classList.add(e.dataset.ok?"good":"dim")})}
+      heading("TONIGHT'S TOP 10");
+    }else{
+      cur=-1;q.textContent="Round over! Final scores are in.";o.innerHTML="";
+      cd.textContent=Math.ceil((CYCLE-t)/1000);cd.className="";f.style.width=((CYCLE-t)/RES*100)+"%";heading("ROUND RESULTS");
+    }
+  },250);
+}
   function board(){
+    var t0=Date.now();
     fetch(ev?"/api/display?event="+encodeURIComponent(ev):"/api/board?code="+encodeURIComponent(code)).then(function(r){return r.json()}).then(function(j){
-      if(j.code){$("jc").textContent=j.code;nextAt=j.nextAt}
+      if(ev){sync.epoch=j.epoch||0;sync.ready=true;sync.off=(j.now||Date.now())+(Date.now()-t0)/2-Date.now();$("jc").textContent=j.code||"- - - - -";nextAt=0;$("jn").textContent="Join any time and play along";if(sync.results)j.rows=j.roundRows}
       var l=$("list");l.innerHTML="";
       (j.rows||[]).forEach(function(r,i){
         var li=document.createElement("li");
@@ -137,6 +141,6 @@ if(!code&&!ev){$("setup").style.display="flex";
       $("empty").textContent=(j.rows&&j.rows.length)?"":"No scores yet. Be the first!";
     }).catch(function(){});
   }
-  board();setInterval(board,5000);
+  board();setInterval(board,ev?3000:5000);
 }
 </script></body></html>

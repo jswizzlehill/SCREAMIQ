@@ -16,6 +16,7 @@ input{width:100%;font:inherit;font-size:1.3rem;text-align:center;padding:14px;bo
 input#code{text-transform:uppercase;letter-spacing:4px}
 button{font:inherit;font-size:1.1rem;width:100%;padding:14px;margin-top:12px;border:0;border-radius:12px;background:var(--acc);color:#fff;font-weight:bold;cursor:pointer}
 button.alt{background:transparent;border:2px solid #6e1a24;color:var(--ink)}
+.opt.pick{border-color:var(--acc);background:#3a0f16}
 .err{color:var(--bad);text-align:center;min-height:1.3em;margin-top:8px}
 .hide{display:none}
 .top{display:flex;justify-content:space-between;color:var(--mut);margin-bottom:8px}
@@ -77,42 +78,15 @@ button{box-shadow:0 3px 0 #6b0412}
 </section>
 </main>
 
+<script src="/questions.js"></script>
 <script>
-var BANK = [
-["Which creature is said to be killed by a wooden stake through the heart?",["Vampire","Zombie","Mummy","Ghoul"]],
-["Halloween traces back to which ancient Celtic festival?",["Samhain","Beltane","Yule","Lughnasadh"]],
-["Jack-o'-lanterns were first carved from which vegetable in Ireland?",["Turnips","Pumpkins","Potatoes","Cabbages"]],
-["In which year did the Salem witch trials take place?",["1692","1492","1776","1812"]],
-["What is the fear of spiders called?",["Arachnophobia","Claustrophobia","Acrophobia","Ophidiophobia"]],
-["Who wrote the novel Frankenstein?",["Mary Shelley","Bram Stoker","Edgar Allan Poe","Stephen King"]],
-["Which creature transforms under a full moon?",["Werewolf","Banshee","Gargoyle","Wraith"]],
-["Who wrote the 1897 novel Dracula?",["Bram Stoker","Mary Shelley","H.P. Lovecraft","Anne Rice"]],
-["In Irish folklore, a banshee's wail warns of what?",["A death","A storm","Buried treasure","A wedding"]],
-["Who directed the 1960 thriller Psycho?",["Alfred Hitchcock","Steven Spielberg","John Carpenter","Wes Craven"]],
-["What is the fear of clowns called?",["Coulrophobia","Xenophobia","Hemophobia","Pyrophobia"]],
-["Which Edgar Allan Poe poem features a tapping at the chamber door?",["The Raven","Annabel Lee","The Bells","Lenore"]],
-["Which animal is classically a witch's companion?",["Black cat","Owl","Toad","Raven"]],
-["Dracula's Transylvania is a region of which country?",["Romania","Hungary","Bulgaria","Poland"]],
-["Ancient Egyptians wrapped mummies in strips of what?",["Linen","Silk","Wool","Leather"]],
-["Fear of the number 13 is called what?",["Triskaidekaphobia","Numerophobia","Hexaphobia","Tetraphobia"]],
-["Day of the Dead (Dia de los Muertos) is most famously celebrated in which country?",["Mexico","Spain","Brazil","Peru"]],
-["In folklore, what can't a vampire cast?",["A reflection","A shadow","A spell","A glance"]],
-["What is a gathering of witches traditionally called?",["Coven","Pack","Flock","Brood"]],
-["The legendary Loch Ness Monster is said to live in which country?",["Scotland","Ireland","Norway","Wales"]],
-["What kind of vessel is the legendary Flying Dutchman?",["Ghost ship","Pirate fort","Slave ship","Navy cruiser"]],
-["Which fruit is traditionally used for Halloween bobbing?",["Apples","Pears","Oranges","Grapes"]],
-["Michael Myers stalks his victims in which horror franchise?",["Halloween","Scream","Friday the 13th","Saw"]],
-["Who wrote The Legend of Sleepy Hollow?",["Washington Irving","Nathaniel Hawthorne","Herman Melville","Mark Twain"]],
-["Bats find their way in the dark using what?",["Echolocation","Infrared vision","Smell","Magnetism"]],
-["What is the fear of darkness called?",["Nyctophobia","Photophobia","Thanatophobia","Agoraphobia"]],
-["Which director made the 1968 zombie classic Night of the Living Dead?",["George A. Romero","Tobe Hooper","Sam Raimi","Dario Argento"]],
-["Which creature has a head of snakes and turns people to stone?",["Medusa","Siren","Harpy","Sphinx"]],
-["What do you call a ghost that moves objects and makes noise?",["Poltergeist","Specter","Phantom","Revenant"]],
-["Which bird is a classic symbol of death and omens, as in Poe's poem?",["Raven","Dove","Robin","Swan"]]
-];
-
+var LOBBY=180000,QMS=10000,REV=5000,NQ=10,RES=20000,CYCLE=LOBBY+NQ*(QMS+REV)+RES;
+function rng(s){return function(){s|=0;s=s+0x6D2B79F5|0;var t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function sshuf(a,seed){a=a.slice();var r=rng(seed);for(var i=a.length-1;i>0;i--){var j=Math.floor(r()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+function qFor(r,i){var q=BANK[sshuf(BANK.map(function(_,k){return k}),r*7919+13)[i]];return{q:q[0],opts:sshuf(q[1].map(function(t,k){return{t:t,ok:k===0}}),r*104729+i*31+7)}}
 var $ = function(id){return document.getElementById(id)};
-var S = {code:"",name:"",qs:[],i:0,score:0,right:0,t:0,iv:null,lock:false,poll:null};
+var S = {code:"",name:"",qs:[],i:0,score:0,right:0,t:0,iv:null,lock:false,poll:null,seen:0,fin:false,live:false,round:0,epoch:0,sy:null,off:0,rq:-1,cur:null,pick:-1,add:0,hit:false,rem:0,revd:-1,liv:null,pid:""}
+try{S.pid=localStorage.getItem("ht_pid");if(!S.pid){S.pid=Math.random().toString(36).slice(2,10);localStorage.setItem("ht_pid",S.pid)}}catch(e){S.pid=Math.random().toString(36).slice(2,10)};
 function show(id){["home","name","quiz","done"].forEach(function(s){$(s).classList.toggle("hide",s!==id)})}
 function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
 
@@ -125,7 +99,8 @@ function enter(){
   .then(function(r){return r.json()}).then(function(j){
     $("go").disabled=false;
     if(!j.ok){$("err").textContent="That code doesn't work. Check the sign in line.";return}
-    S.code=j.board||c;
+    S.code=j.board||c;S.live=!!j.live;S.round=j.round;S.epoch=j.epoch||0;S.off=(j.now||Date.now())-Date.now();
+    $("start").textContent=S.live?"Join the round":"Start round (10 questions)";
     $("welcome").textContent="Welcome to "+j.label+". Who dares enter?";
     try{var n=localStorage.getItem("ht_name");if(n)$("nick").value=n}catch(e){}
     show("name");
@@ -138,11 +113,12 @@ function startRound(){
   var n=$("nick").value.trim();
   if(!n){$("nick").focus();return}
   S.name=n;try{localStorage.setItem("ht_name",n)}catch(e){}
+  if(S.live){startLive();return}
   S.qs=shuffle(BANK).slice(0,10);S.i=0;S.score=0;S.right=0;
   show("quiz");ask();
 }
 $("start").onclick=startRound;
-$("again").onclick=function(){show("name");board("board0")};
+$("again").onclick=function(){if(S.live){clearInterval(S.liv);clearInterval(S.sy);S.live=false;$("code").value="";$("err").textContent="";show("home")}else{show("name");board("board0")}};
 $("lb1").onclick=function(){board("board0")};
 
 function ask(){
@@ -169,7 +145,7 @@ function pick(btn,ok){
 }
 
 function finish(){
-  show("done");
+  show("done");$("again").textContent="Play another round";
   $("final").textContent=S.score;
   $("summary").textContent=S.right+" of 10 correct, "+S.name;
   saveScore();board("board1");
@@ -191,13 +167,74 @@ window.addEventListener("online",flush);
 document.addEventListener("visibilitychange",function(){if(!document.hidden)flush()});
 setInterval(flush,15000);
 
+
+// ---- live mode: one game for everyone, driven by the server clock (same question, same timer as the big screen) ----
+function mmss(n){return Math.floor(n/60)+":"+("0"+(n%60)).slice(-2)}
+function syncClock(){
+  var t0=Date.now();
+  fetch("/api/board?code="+encodeURIComponent(S.code)).then(function(r){return r.json()}).then(function(j){
+    if(j.now){var t1=Date.now();S.off=j.now+(t1-t0)/2-t1}
+    if(j.epoch!==undefined)S.epoch=j.epoch||0;
+  }).catch(function(){});
+}
+function startLive(){
+  clearInterval(S.sy);S.sy=setInterval(syncClock,10000);syncClock();
+  S.score=0;S.right=0;S.seen=0;S.fin=false;S.round=-1;S.rq=-1;S.revd=-1;S.add=0;S.hit=false;S.lock=true;
+  show("quiz");clearInterval(S.liv);S.liv=setInterval(liveTick,200);liveTick();
+}
+function liveTick(){
+  if(!S.epoch){
+    $("qn").textContent="Hold tight";$("pts").textContent="";
+    $("qt").textContent="The game hasn't started yet. Watch the big screen for the countdown!";
+    $("opts").innerHTML="";$("bar").style.width="0%";S.rq=-1;S.round=-1;return;
+  }
+  var now=Date.now()+S.off-S.epoch,r=Math.floor(now/CYCLE),t=now-r*CYCLE,qa=LOBBY+NQ*(QMS+REV);
+  if(r!==S.round){S.round=r;S.score=0;S.right=0;S.seen=0;S.fin=false;S.rq=-1;S.revd=-1;S.add=0;S.hit=false;S.lock=true;if(t<qa)show("quiz")}
+  if(t>=qa){
+    if(!S.fin){S.fin=true;finishLive()}
+    $("summary").textContent=(S.seen?S.right+" correct. ":"")+"Next round starts in "+Math.ceil((CYCLE-t)/1000)+"s";return;
+  }
+  if(t<LOBBY){
+    $("qn").textContent="Get ready";$("pts").textContent="";
+    $("qt").textContent="Game starts in "+mmss(Math.ceil((LOBBY-t)/1000))+". Watch the big screen!";
+    $("opts").innerHTML="";$("bar").style.width=((LOBBY-t)/LOBBY*100)+"%";S.rq=-1;return;
+  }
+  var qi=Math.floor((t-LOBBY)/(QMS+REV)),w=(t-LOBBY)-qi*(QMS+REV);
+  if(S.rq!==qi){
+    S.rq=qi;S.seen++;S.lock=false;S.pick=-1;S.add=0;S.hit=false;S.cur=qFor(S.round,qi);
+    $("qt").textContent=S.cur.q;
+    var o=$("opts");o.innerHTML="";
+    S.cur.opts.forEach(function(x,k){var b=document.createElement("button");b.className="opt";b.textContent=x.t;b.onclick=function(){livePick(k,b)};o.appendChild(b)});
+  }
+  if(w<QMS){S.rem=(QMS-w)/1000;$("bar").style.width=((QMS-w)/QMS*100)+"%";$("qn").textContent="Question "+(qi+1)+" of 10  -  "+Math.ceil((QMS-w)/1000)+"s"}
+  else{
+    S.lock=true;$("bar").style.width="0%";$("qn").textContent="Question "+(qi+1)+" of 10  -  Answer";
+    if(S.revd!==qi){
+      S.revd=qi;if(S.hit){S.right++;S.score+=S.add}S.hit=false;S.add=0;
+      Array.prototype.forEach.call($("opts").children,function(b,k){if(S.cur.opts[k].ok)b.classList.add("good");else if(k===S.pick)b.classList.add("bad")});
+    }
+  }
+  $("pts").textContent=S.score+" pts";
+}
+function livePick(k,b){
+  if(S.lock)return;S.lock=true;S.pick=k;
+  if(S.cur.opts[k].ok){S.hit=true;S.add=100+Math.round(S.rem*3)}
+  b.classList.add("pick");
+}
+function finishLive(){
+  show("done");$("again").textContent="Leave game";
+  $("final").textContent=S.score;
+  if(S.seen>0)saveScore();
+  board("board1");
+}
+
 function localKey(){return "ht_board_"+S.code}
 function localGet(){try{return JSON.parse(localStorage.getItem(localKey())||"[]")}catch(e){return[]}}
 function saveScore(){
   var e={name:S.name,score:S.score,right:S.right,t:Date.now()};
   var l=localGet();l.push(e);l.sort(function(a,b){return b.score-a.score});
   try{localStorage.setItem(localKey(),JSON.stringify(l.slice(0,20)))}catch(x){}
-  var q=pend();q.push({id:e.t+"-"+Math.random().toString(36).slice(2,8),code:S.code,name:e.name,score:e.score,right:e.right,t:e.t});setPend(q);
+  var q=pend();q.push({id:S.live?S.pid+"-"+S.round:e.t+"-"+Math.random().toString(36).slice(2,8),code:S.code,round:S.live?S.round:null,name:e.name,score:e.score,right:e.right,t:e.t});setPend(q);
   flush();
 }
 
@@ -222,7 +259,9 @@ function board(id){
   var el=$(id);if(S.poll)clearInterval(S.poll);
   render(el,localGet(),"Scores on this phone");
   function load(){
-    fetch("/api/board?code="+encodeURIComponent(S.code)).then(function(r){return r.json()}).then(function(j){
+    var t0=Date.now();
+    fetch("/api/board?code="+encodeURIComponent(S.code)+(S.live?"&round="+S.round:"")).then(function(r){return r.json()}).then(function(j){
+      if(j.now){var t1=Date.now();S.off=j.now+(t1-t0)/2-t1}
       render(el,j.rows,"Live scores from everyone in line");
     }).catch(function(){});
   }

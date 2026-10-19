@@ -23,15 +23,10 @@ a{color:#e3182f}
 <div id="panel" style="display:none">
   <h2>Automatic codes (recommended)</h2>
   <div class="card">
-    <small>Set this up once. The code changes by itself and shows on the big screen. Nobody has to type new codes.</small><br><br>
+    <small>Set this up once. One game runs all night with one code that stays the same. Press Start countdown once, or set an open and close time below and it starts and stops itself. Once running, every game is followed by 20 seconds of results and a 3-minute countdown, then the next game, with nobody pressing anything.</small><br><br>
     <input id="en" maxlength="30" placeholder="Name for you, e.g. Friday night">
     <input id="el" maxlength="40" placeholder="Name players see, e.g. the Asylum">
-    <select id="em">
-      <option value="10">New code every 10 minutes</option>
-      <option value="15">New code every 15 minutes</option>
-      <option value="30" selected>New code every 30 minutes</option>
-      <option value="60">New code every hour</option>
-    </select>
+    <input id="ec" maxlength="12" placeholder="Code players type (leave blank for a random one)">
     <button onclick="addEvent()">Create</button>
   </div>
   <div id="events"></div>
@@ -62,14 +57,17 @@ function act(a,code){
   if(a==="add"){document.getElementById("nc").value="";document.getElementById("nl").value=""}
 }
 function addEvent(){
-  post({action:"addEvent",name:document.getElementById("en").value,label:document.getElementById("el").value,minutes:document.getElementById("em").value}).then(show);
-  document.getElementById("en").value="";document.getElementById("el").value="";
+  post({action:"addEvent",name:document.getElementById("en").value,label:document.getElementById("el").value,code:document.getElementById("ec").value}).then(show);
+  document.getElementById("en").value="";document.getElementById("el").value="";document.getElementById("ec").value="";
 }
 function evAct(a,id,name){
   if(a==="removeEvent"&&!confirm("Delete "+name+" and all its scores?"))return;
   if(a==="resetEvent"&&!confirm("Clear all scores for "+name+"?"))return;
+  if(a==="stopEvent"&&!confirm("Stop the game for "+name+"? Phones and the big screen go back to waiting."))return;
+  if(a==="restartEvent"&&!confirm("Start a new 3-minute countdown for "+name+" now? Anyone playing will jump to the new countdown."))return;
   post({action:a,id:id}).then(show);
 }
+function loc(ms){if(!ms)return "";var d=new Date(ms-new Date().getTimezoneOffset()*60000);return d.toISOString().slice(0,16)}
 function btn(t,f){var b=document.createElement("button");b.className="alt";b.textContent=t;b.onclick=f;return b}
 function topRows(d,rows){rows.forEach(function(r,i){var p=document.createElement("div");p.textContent=(i+1)+". "+r.name+" - "+r.score;d.appendChild(p)})}
 function show(j){
@@ -80,11 +78,22 @@ function show(j){
   (j.events||[]).forEach(function(e){
     var d=document.createElement("div");d.className="card";
     var t=document.createElement("div");t.textContent=e.name;t.style.fontWeight="bold";d.appendChild(t);
-    var s=document.createElement("small");s.textContent=e.label+" | new code every "+e.minutes+" min | "+e.plays+" plays";d.appendChild(s);
-    var c=document.createElement("div");c.className="code";c.textContent="Now: "+e.code;d.appendChild(c);
+    var s=document.createElement("small");s.textContent=e.label+" | "+(e.running?"RUNNING":"NOT STARTED")+" | "+e.plays+" plays";d.appendChild(s);
+    var c=document.createElement("div");c.className="code";c.textContent="Code: "+e.code;d.appendChild(c);
     var lk=document.createElement("a");lk.href="/display?event="+encodeURIComponent(e.id);lk.target="_blank";lk.textContent="Open big screen (shows the live code)";lk.style.cssText="display:block;margin:8px 0";d.appendChild(lk);
+    var sc=document.createElement("div");sc.style.cssText="margin:10px 0";
+    var l1=document.createElement("small");l1.textContent="Opens automatically at (leave blank for no schedule)";sc.appendChild(l1);
+    var oi=document.createElement("input");oi.type="datetime-local";oi.value=loc(e.opensAt);sc.appendChild(oi);
+    var l2=document.createElement("small");l2.textContent="Closes automatically at";sc.appendChild(l2);
+    var ci=document.createElement("input");ci.type="datetime-local";ci.value=loc(e.closesAt);sc.appendChild(ci);
+    sc.appendChild(btn("Save schedule",function(){
+      post({action:"setSchedule",id:e.id,opensAt:oi.value?new Date(oi.value).getTime():0,closesAt:ci.value?new Date(ci.value).getTime():0}).then(show);
+    }));
+    d.appendChild(sc);
     topRows(d,e.top);
     var w=document.createElement("div");w.style.marginTop="8px";
+    if(e.running){w.appendChild(btn("Restart countdown",function(){evAct("restartEvent",e.id,e.name)}));w.appendChild(btn("Stop game",function(){evAct("stopEvent",e.id,e.name)}))}
+    else{var sb=btn("Start countdown (3 min)",function(){evAct("startEvent",e.id,e.name)});sb.className="";w.appendChild(sb)}
     w.appendChild(btn("Clear scores",function(){evAct("resetEvent",e.id,e.name)}));
     w.appendChild(btn("Delete",function(){evAct("removeEvent",e.id,e.name)}));
     d.appendChild(w);ev.appendChild(d);
