@@ -46,7 +46,7 @@ function resolveJoin(c) {
   if (db.codes[c]) return { board: c, label: db.codes[c].label };
   for (const id of Object.keys(db.events)) {
     const ev = db.events[id];
-    if (ev.code === c) return { board: id, label: ev.label, live: true, round: curRound(ev, Date.now()), epoch: ev.start };
+    if (ev.code === c) return { board: id, label: ev.label, live: true, round: curRound(ev, Date.now()), epoch: ev.start, opensAt: ev.start ? null : ev.opensAt };
   }
   return null;
 }
@@ -99,18 +99,20 @@ http.createServer(async (req, res) => {
   try {
     if (u.pathname === "/api/join" && req.method === "POST") {
       const r = resolveJoin(normCode((await body(req)).code));
-      return r ? send(res, 200, { ok: true, label: r.label, board: r.board, live: !!r.live, round: r.round, epoch: r.epoch, now: Date.now() }) : send(res, 200, { ok: false });
+      return r ? send(res, 200, { ok: true, label: r.label, board: r.board, live: !!r.live, round: r.round, epoch: r.epoch, opensAt: r.opensAt, now: Date.now() }) : send(res, 200, { ok: false });
     }
     if (u.pathname === "/api/board" && req.method === "GET") {
       const c = normCode(u.searchParams.get("code"));
       const rd = u.searchParams.get("round"), bev = db.events[c];
-      return validBoard(c) ? send(res, 200, { now: Date.now(), epoch: bev ? bev.start : undefined, rows: top(c, 10, rd === null ? undefined : +rd) }) : send(res, 404, { rows: [] });
+      return validBoard(c) ? send(res, 200, { now: Date.now(), epoch: bev ? bev.start : undefined, opensAt: bev && !bev.start ? bev.opensAt : undefined, rows: top(c, 10, rd === null ? undefined : +rd) }) : send(res, 404, { rows: [] });
     }
     if (u.pathname === "/api/display" && req.method === "GET") {
       const id = normCode(u.searchParams.get("event")), ev = db.events[id];
       if (!ev) return send(res, 404, { rows: [] });
+      // Opening the big screen starts the countdown (once). A scheduled open time takes priority, and polling never restarts a stopped game.
+      if (u.searchParams.get("arm") === "1" && !ev.start && !ev.opensAt) { ev.start = Date.now() - (ev.base || 0) * CYCLE; save(); }
       const now = Date.now(), cur = curRound(ev, now);
-      return send(res, 200, { label: ev.label, now, epoch: ev.start, code: ev.code, rows: top(id, 10), roundRows: top(id, 10, cur) });
+      return send(res, 200, { label: ev.label, now, epoch: ev.start, opensAt: ev.start ? null : ev.opensAt, code: ev.code, rows: top(id, 10), roundRows: top(id, 10, cur) });
     }
     if (u.pathname === "/api/score" && req.method === "POST") {
       const b = await body(req), c = normCode(b.code);

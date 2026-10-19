@@ -97,12 +97,22 @@ if(!code&&!ev){$("setup").style.display="flex";
   }
   if(!ev)nextQ();else startLive();
 
-var sync={off:0,epoch:0,ready:false,results:false},cur=-1,curR=-1;
+var sync={off:0,epoch:0,opens:0,ready:false,results:false},cur=-1,curR=-1;
 function heading(h){$("right").querySelector("h2").textContent=h;sync.results=(h==="ROUND RESULTS")}
 function startLive(){
   setInterval(function(){
     if(!sync.ready)return;
-    if(!sync.epoch){var iq=$("q");iq.textContent="Get ready! The game starts soon. Enter the code on your phone.";$("opts").innerHTML="";$("cd").textContent="";$("fill").style.width="0%";cur=-1;heading("TONIGHT'S TOP 10");return}
+    if(!sync.epoch){
+      var iq=$("q"),ic=$("cd"),left=sync.opens?Math.max(0,Math.ceil((sync.opens-(Date.now()+sync.off))/1000)):0;
+      $("opts").innerHTML="";$("fill").style.width="0%";cur=-1;heading("TONIGHT'S TOP 10");
+      if(sync.opens){
+        var h=Math.floor(left/3600),m=Math.floor((left%3600)/60),sc=("0"+(left%60)).slice(-2);
+        ic.textContent=(h?h+":"+("0"+m).slice(-2):m)+":"+sc;ic.className="";
+        iq.textContent="The game opens soon. Enter the code on your phone to wait inside!";
+      }else{
+        ic.textContent="";iq.textContent="Waiting for the host to start the game. Enter the code on your phone now!";
+      }
+      return}
     var now=Date.now()+sync.off-sync.epoch,r=Math.floor(now/CYCLE),t=now-r*CYCLE,qa=LOBBY+NQ*(QMS+REV);
     var q=$("q"),o=$("opts"),cd=$("cd"),f=$("fill");f.style.transition="none";
     if(t<LOBBY){
@@ -127,9 +137,9 @@ function startLive(){
   },250);
 }
   function board(){
-    var t0=Date.now();
-    fetch(ev?"/api/display?event="+encodeURIComponent(ev):"/api/board?code="+encodeURIComponent(code)).then(function(r){return r.json()}).then(function(j){
-      if(ev){sync.epoch=j.epoch||0;sync.ready=true;sync.off=(j.now||Date.now())+(Date.now()-t0)/2-Date.now();$("jc").textContent=j.code||"- - - - -";nextAt=0;$("jn").textContent="Join any time and play along";if(sync.results)j.rows=j.roundRows}
+    var t0=Date.now(),arm=ev&&!sync.armed;sync.armed=true;
+    fetch(ev?"/api/display?event="+encodeURIComponent(ev)+(arm?"&arm=1":""):"/api/board?code="+encodeURIComponent(code)).then(function(r){return r.json()}).then(function(j){
+      if(ev){sync.epoch=j.epoch||0;sync.opens=j.opensAt||0;sync.ready=true;sync.off=(j.now||Date.now())+(Date.now()-t0)/2-Date.now();$("jc").textContent=j.code||"- - - - -";nextAt=0;$("jn").textContent="Join any time and play along";if(sync.results)j.rows=j.roundRows}
       var l=$("list");l.innerHTML="";
       (j.rows||[]).forEach(function(r,i){
         var li=document.createElement("li");

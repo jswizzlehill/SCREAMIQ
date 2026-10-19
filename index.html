@@ -85,7 +85,7 @@ function rng(s){return function(){s|=0;s=s+0x6D2B79F5|0;var t=Math.imul(s^s>>>15
 function sshuf(a,seed){a=a.slice();var r=rng(seed);for(var i=a.length-1;i>0;i--){var j=Math.floor(r()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
 function qFor(r,i){var q=BANK[sshuf(BANK.map(function(_,k){return k}),r*7919+13)[i]];return{q:q[0],opts:sshuf(q[1].map(function(t,k){return{t:t,ok:k===0}}),r*104729+i*31+7)}}
 var $ = function(id){return document.getElementById(id)};
-var S = {code:"",name:"",qs:[],i:0,score:0,right:0,t:0,iv:null,lock:false,poll:null,seen:0,fin:false,live:false,round:0,epoch:0,sy:null,off:0,rq:-1,cur:null,pick:-1,add:0,hit:false,rem:0,revd:-1,liv:null,pid:""}
+var S = {code:"",name:"",qs:[],i:0,score:0,right:0,t:0,iv:null,lock:false,poll:null,seen:0,fin:false,live:false,round:0,epoch:0,opens:0,sy:null,off:0,rq:-1,cur:null,pick:-1,add:0,hit:false,rem:0,revd:-1,liv:null,pid:""}
 try{S.pid=localStorage.getItem("ht_pid");if(!S.pid){S.pid=Math.random().toString(36).slice(2,10);localStorage.setItem("ht_pid",S.pid)}}catch(e){S.pid=Math.random().toString(36).slice(2,10)};
 function show(id){["home","name","quiz","done"].forEach(function(s){$(s).classList.toggle("hide",s!==id)})}
 function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
@@ -99,7 +99,7 @@ function enter(){
   .then(function(r){return r.json()}).then(function(j){
     $("go").disabled=false;
     if(!j.ok){$("err").textContent="That code doesn't work. Check the sign in line.";return}
-    S.code=j.board||c;S.live=!!j.live;S.round=j.round;S.epoch=j.epoch||0;S.off=(j.now||Date.now())-Date.now();
+    S.code=j.board||c;S.live=!!j.live;S.round=j.round;S.epoch=j.epoch||0;S.opens=j.opensAt||0;S.off=(j.now||Date.now())-Date.now();
     $("start").textContent=S.live?"Join the round":"Start round (10 questions)";
     $("welcome").textContent="Welcome to "+j.label+". Who dares enter?";
     try{var n=localStorage.getItem("ht_name");if(n)$("nick").value=n}catch(e){}
@@ -175,6 +175,7 @@ function syncClock(){
   fetch("/api/board?code="+encodeURIComponent(S.code)).then(function(r){return r.json()}).then(function(j){
     if(j.now){var t1=Date.now();S.off=j.now+(t1-t0)/2-t1}
     if(j.epoch!==undefined)S.epoch=j.epoch||0;
+    S.opens=j.opensAt||0;
   }).catch(function(){});
 }
 function startLive(){
@@ -185,7 +186,8 @@ function startLive(){
 function liveTick(){
   if(!S.epoch){
     $("qn").textContent="Hold tight";$("pts").textContent="";
-    $("qt").textContent="The game hasn't started yet. Watch the big screen for the countdown!";
+    var lf=S.opens?Math.max(0,Math.ceil((S.opens-(Date.now()+S.off))/1000)):0;
+    $("qt").textContent=S.opens?"The game opens in "+(lf>=3600?Math.floor(lf/3600)+"h ":"")+mmss(lf%3600)+". Stay on this page!":"The game hasn't started yet. Stay on this page and watch the big screen!";
     $("opts").innerHTML="";$("bar").style.width="0%";S.rq=-1;S.round=-1;return;
   }
   var now=Date.now()+S.off-S.epoch,r=Math.floor(now/CYCLE),t=now-r*CYCLE,qa=LOBBY+NQ*(QMS+REV);
