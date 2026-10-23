@@ -97,6 +97,12 @@ if(!code&&!ev){$("setup").style.display="flex";
   }
   if(!ev)nextQ();else startLive();
 
+function checkVer(v){
+  if(!v||typeof VER==="undefined")return;
+  if(v===VER){try{sessionStorage.removeItem("ht_rl")}catch(e){}return}
+  try{var k=+(sessionStorage.getItem("ht_rl")||0);if(k>=3)return;sessionStorage.setItem("ht_rl",String(k+1))}catch(e){}
+  location.reload();
+}
 var sync={off:0,epoch:0,opens:0,ready:false,results:false},cur=-1,curR=-1;
 function heading(h){$("right").querySelector("h2").textContent=h;sync.results=(h==="ROUND RESULTS")}
 function startLive(){
@@ -139,6 +145,7 @@ function startLive(){
   function board(){
     var t0=Date.now(),arm=ev&&!sync.armed;sync.armed=true;
     fetch(ev?"/api/display?event="+encodeURIComponent(ev)+(arm?"&arm=1":""):"/api/board?code="+encodeURIComponent(code)).then(function(r){return r.json()}).then(function(j){
+      checkVer(j.ver);
       if(ev){sync.epoch=j.epoch||0;sync.opens=j.opensAt||0;sync.ready=true;sync.off=(j.now||Date.now())+(Date.now()-t0)/2-Date.now();$("jc").textContent=j.code||"- - - - -";nextAt=0;$("jn").textContent="Join any time and play along";if(sync.results)j.rows=j.roundRows}
       var l=$("list");l.innerHTML="";
       (j.rows||[]).forEach(function(r,i){

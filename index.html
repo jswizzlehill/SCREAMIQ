@@ -169,10 +169,17 @@ setInterval(flush,15000);
 
 
 // ---- live mode: one game for everyone, driven by the server clock (same question, same timer as the big screen) ----
+function checkVer(v){
+  if(!v||typeof VER==="undefined")return;
+  if(v===VER){try{sessionStorage.removeItem("ht_rl")}catch(e){}return}
+  try{var k=+(sessionStorage.getItem("ht_rl")||0);if(k>=3)return;sessionStorage.setItem("ht_rl",String(k+1))}catch(e){}
+  location.reload();
+}
 function mmss(n){return Math.floor(n/60)+":"+("0"+(n%60)).slice(-2)}
 function syncClock(){
   var t0=Date.now();
   fetch("/api/board?code="+encodeURIComponent(S.code)).then(function(r){return r.json()}).then(function(j){
+    checkVer(j.ver);
     if(j.now){var t1=Date.now();S.off=j.now+(t1-t0)/2-t1}
     if(j.epoch!==undefined)S.epoch=j.epoch||0;
     S.opens=j.opensAt||0;

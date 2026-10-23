@@ -91,6 +91,14 @@ function adminList() {
 }
 
 const FILES = new Map();
+// One version number for the three game files. Pages are served stamped with it and reload themselves if the server moves on.
+function version() {
+  const names = ["index.html", "display.html", "questions.js"];
+  const txt = names.map((n) => { try { return fs.readFileSync(path.join(PUB, n), "utf8"); } catch (e) { return ""; } }).join("\n");
+  const k = txt.length + ":" + txt.slice(0, 64) + txt.slice(-64);
+  if (version.k !== k || !version.v) { version.k = k; version.v = crypto.createHash("sha1").update(txt).digest("hex").slice(0, 10); }
+  return version.v;
+}
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
 http.createServer(async (req, res) => {
@@ -99,12 +107,12 @@ http.createServer(async (req, res) => {
   try {
     if (u.pathname === "/api/join" && req.method === "POST") {
       const r = resolveJoin(normCode((await body(req)).code));
-      return r ? send(res, 200, { ok: true, label: r.label, board: r.board, live: !!r.live, round: r.round, epoch: r.epoch, opensAt: r.opensAt, now: Date.now() }) : send(res, 200, { ok: false });
+      return r ? send(res, 200, { ok: true, label: r.label, board: r.board, ver: version(), live: !!r.live, round: r.round, epoch: r.epoch, opensAt: r.opensAt, now: Date.now() }) : send(res, 200, { ok: false });
     }
     if (u.pathname === "/api/board" && req.method === "GET") {
       const c = normCode(u.searchParams.get("code"));
       const rd = u.searchParams.get("round"), bev = db.events[c];
-      return validBoard(c) ? send(res, 200, { now: Date.now(), epoch: bev ? bev.start : undefined, opensAt: bev && !bev.start ? bev.opensAt : undefined, rows: top(c, 10, rd === null ? undefined : +rd) }) : send(res, 404, { rows: [] });
+      return validBoard(c) ? send(res, 200, { ver: version(), now: Date.now(), epoch: bev ? bev.start : undefined, opensAt: bev && !bev.start ? bev.opensAt : undefined, rows: top(c, 10, rd === null ? undefined : +rd) }) : send(res, 404, { rows: [] });
     }
     if (u.pathname === "/api/display" && req.method === "GET") {
       const id = normCode(u.searchParams.get("event")), ev = db.events[id];
@@ -112,7 +120,7 @@ http.createServer(async (req, res) => {
       // Opening the big screen starts the countdown (once). A scheduled open time takes priority, and polling never restarts a stopped game.
       if (u.searchParams.get("arm") === "1" && !ev.start && !ev.opensAt) { ev.start = Date.now() - (ev.base || 0) * CYCLE; save(); }
       const now = Date.now(), cur = curRound(ev, now);
-      return send(res, 200, { label: ev.label, now, epoch: ev.start, opensAt: ev.start ? null : ev.opensAt, code: ev.code, rows: top(id, 10), roundRows: top(id, 10, cur) });
+      return send(res, 200, { ver: version(), label: ev.label, now, epoch: ev.start, opensAt: ev.start ? null : ev.opensAt, code: ev.code, rows: top(id, 10), roundRows: top(id, 10, cur) });
     }
     if (u.pathname === "/api/score" && req.method === "POST") {
       const b = await body(req), c = normCode(b.code);
@@ -156,8 +164,12 @@ http.createServer(async (req, res) => {
     let p = u.pathname === "/" ? "/index.html" : u.pathname === "/admin" ? "/admin.html" : u.pathname === "/display" ? "/display.html" : u.pathname;
     const f = path.normalize(path.join(PUB, p));
     if (!f.startsWith(PUB + path.sep) || !fs.existsSync(f) || !fs.statSync(f).isFile()) { res.writeHead(404); return res.end("Not found"); }
-    const st = fs.statSync(f); let c = FILES.get(f);
-    if (!c || c.m !== st.mtimeMs) { const raw = fs.readFileSync(f); c = { m: st.mtimeMs, raw, gz: zlib.gzipSync(raw), tag: '"' + st.mtimeMs + "-" + st.size + '"' }; FILES.set(f, c); }
+    const st = fs.statSync(f), isHtml = path.extname(f) === ".html", V = isHtml ? version() : ""; let c = FILES.get(f);
+    if (!c || c.m !== st.mtimeMs || c.v !== V) {
+      let raw = fs.readFileSync(f);
+      if (isHtml) raw = Buffer.from(raw.toString("utf8").replace("/questions.js", "/questions.js?v=" + V).replace("<script>", '<script>var VER="' + V + '";'), "utf8");
+      c = { m: st.mtimeMs, v: V, raw, gz: zlib.gzipSync(raw), tag: '"' + st.mtimeMs + "-" + st.size + "-" + V + '"' }; FILES.set(f, c);
+    }
     if (req.headers["if-none-match"] === c.tag) { res.writeHead(304); return res.end(); }
     const h = { "Content-Type": TYPES[path.extname(f)] || "application/octet-stream", "Cache-Control": "no-cache", ETag: c.tag, Vary: "Accept-Encoding" };
     if (String(req.headers["accept-encoding"] || "").includes("gzip")) { h["Content-Encoding"] = "gzip"; res.writeHead(200, h); return res.end(c.gz); }
