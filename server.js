@@ -6,7 +6,7 @@ const FILE = process.env.DATA_FILE || path.join(__dirname, "data.json");
 const PUB = path.join(__dirname, "public");
 // Live rounds run on the server clock, counted from when the event was created (the code is up): 3-minute lobby, 10 questions (10s to answer + 5s reveal), results. (TIME_SCALE is for testing only.)
 const K = +process.env.TIME_SCALE || 1;
-const LOBBY = 180000 * K, QMS = 10000 * K, REV = 5000 * K, NQ = 10, RES = 20000 * K, CYCLE = LOBBY + NQ * (QMS + REV) + RES;
+const LOBBY = 180000 * K, QMS = 12000 * K, REV = 5000 * K, NQ = 10, RES = 20000 * K, CYCLE = LOBBY + NQ * (QMS + REV) + RES;
 
 let db = { codes: { SCREAM: { label: "the Haunted House" } }, events: {}, scores: {}, secret: "" };
 try { db = JSON.parse(fs.readFileSync(FILE, "utf8")); } catch (e) {}
